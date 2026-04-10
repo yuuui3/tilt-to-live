@@ -1057,6 +1057,14 @@ function drawTitle() {
 
   drawButton(cx, cy + 120, 210, 52, 'START', '#00FFFF', btnStartHovered);
 
+  // キャリブレーション案内
+  ctx.font        = '10px Orbitron, monospace';
+  ctx.fillStyle   = '#666666';
+  ctx.shadowBlur  = 0;
+  ctx.shadowColor = 'transparent';
+  ctx.fillText('スタート時の傾きが操作の基準になります', cx, cy + 152);
+  ctx.fillText('水平に持ってSTARTを押してください', cx, cy + 166);
+
   if (ScoreManager.highScore > 0) {
     ctx.font        = '14px Orbitron, monospace';
     ctx.fillStyle   = '#FFDD00';
