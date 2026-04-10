@@ -39,9 +39,9 @@ const CONFIG = {
   ORB_MAX_COUNT: 3,
   SCORE_PER_SECOND: 10,
   SCORE_PER_KILL: 50,
-  PLAYER_RADIUS: 8,
-  ENEMY_RADIUS: 8,
-  ORB_RADIUS: 16,
+  PLAYER_RADIUS: 6,
+  ENEMY_RADIUS: 6,
+  ORB_RADIUS: 12,
   INVINCIBLE_DURATION: 1.5,
   TRAIL_MAX: 22,
 };
@@ -216,7 +216,7 @@ const player = {
   },
 
   update(dt) {
-    const lf = Math.min(1, 8 * dt);
+    const lf = Math.min(1, 16 * dt);
     this.vx += (this.targetVX - this.vx) * lf;
     this.vy += (this.targetVY - this.vy) * lf;
 
@@ -310,10 +310,10 @@ const player = {
     ctx.shadowColor = '#00FFFF';
     ctx.fillStyle   = '#FFFFFF';
     ctx.beginPath();
-    ctx.moveTo( 17,  0);
-    ctx.lineTo(-10, -11);
-    ctx.lineTo( -5,   0);
-    ctx.lineTo(-10,  11);
+    ctx.moveTo( 12,  0);
+    ctx.lineTo( -7, -8);
+    ctx.lineTo( -3,  0);
+    ctx.lineTo( -7,  8);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -881,7 +881,7 @@ function setupTilt() {
 
     // 傾き角度を正規化（最大40度で±1）し、二乗カーブで加速度を変える
     const maxTiltX = 22; // beta(前後)は可動域が狭いので感度高め
-    const maxTiltY = 38; // gamma(左右)は可動域が広いので標準
+    const maxTiltY = 22; // gamma(左右)も同感度に統一
     const nx = Math.max(-1, Math.min(1, rawX / maxTiltX));
     const ny = Math.max(-1, Math.min(1, rawY / maxTiltY));
     player.targetVX = Math.sign(nx) * nx * nx * CONFIG.PLAYER_SPEED;
