@@ -8,37 +8,19 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; }
-    canvas { display: block; touch-action: none; }
-
-    /* 縦画面では回転を促すオーバーレイを表示 */
-    #rotate-overlay {
-      display: none;
-      position: fixed; inset: 0; z-index: 9999;
-      background: #000;
-      flex-direction: column;
-      align-items: center; justify-content: center;
-      color: #00FFFF;
-      font-family: 'Orbitron', monospace;
-      text-align: center;
-      gap: 24px;
-    }
-    #rotate-overlay .icon { font-size: 64px; animation: spin 2s ease-in-out infinite alternate; }
-    #rotate-overlay p { font-size: 16px; color: #aaa; }
-    @keyframes spin {
-      from { transform: rotate(-20deg); }
-      to   { transform: rotate(20deg); }
-    }
-    @media (orientation: portrait) {
-      #rotate-overlay { display: flex; }
+    /* canvasをCSSで90°回転させて縦持ちのまま横画面表示 */
+    canvas {
+      display: block;
+      touch-action: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(90deg);
+      transform-origin: center center;
     }
   </style>
 </head>
 <body>
-<div id="rotate-overlay">
-  <div class="icon">📱</div>
-  <div style="font-size:20px; font-weight:bold;">横画面にしてください</div>
-  <p>This game is designed for landscape mode.</p>
-</div>
 <canvas id="game"></canvas>
 <script>
 'use strict';
@@ -71,11 +53,26 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
 function resizeCanvas() {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
+  // 縦持ちスマホで横画面を実現：canvas内部は横長サイズ、CSSで90°回転
+  const W = window.innerHeight; // 長辺 = ゲームの横幅
+  const H = window.innerWidth;  // 短辺 = ゲームの縦幅
+  canvas.width  = W;
+  canvas.height = H;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
+
+// スクリーン座標 → canvas座標変換（90°CW回転の逆変換）
+function screenToCanvas(sx, sy) {
+  const rdx = sx - window.innerWidth  / 2;
+  const rdy = sy - window.innerHeight / 2;
+  return {
+    x: canvas.width  / 2 + rdy,
+    y: canvas.height / 2 - rdx,
+  };
+}
 
 // ============================================================
 // GAME STATE
@@ -857,8 +854,9 @@ window.addEventListener('keyup',   e => { keys[e.code] = false; });
 
 canvas.addEventListener('mousemove', e => {
   if (gameState !== STATE.PLAYING) return;
-  const dx   = e.clientX - player.x;
-  const dy   = e.clientY - player.y;
+  const c    = screenToCanvas(e.clientX, e.clientY);
+  const dx   = c.x - player.x;
+  const dy   = c.y - player.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
   if (dist > 8) {
     const factor = Math.min(dist / 120, 1);
@@ -875,22 +873,11 @@ function setupTilt() {
     const gamma = e.gamma || 0;
     const beta  = e.beta  || 0;
 
-    // 横画面ではgamma/betaの軸が入れ替わるため補正
-    // angle=90(landscape right): X←beta, Y←-gamma
-    // angle=270(landscape left):  X←-beta, Y←gamma
-    const angle = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
-    let rawX, rawY;
-    if (angle === 90) {
-      rawX =  beta;
-      rawY = -gamma;
-    } else if (angle === 270 || angle === -90) {
-      rawX = -beta;
-      rawY =  gamma;
-    } else {
-      // 縦画面フォールバック（従来通り）
-      rawX =  gamma;
-      rawY =  beta - 25;
-    }
+    // 縦持ち固定・canvas90°回転方式：
+    // 画面上の横方向(game X) ← 端末のpitch(beta)
+    // 画面上の縦方向(game Y) ← 端末のroll(gamma、符号反転)
+    const rawX = beta - 20;  // 前後傾き → ゲーム左右
+    const rawY = -gamma;     // 左右傾き → ゲーム上下（反転で自然な操作感）
 
     // 傾き角度を正規化（最大40度で±1）し、二乗カーブで加速度を変える
     const maxTilt = 40;
@@ -1114,20 +1101,22 @@ function _titleBtnPos()  { return { cx: canvas.width/2, cy: canvas.height/2 + 12
 function _retryBtnPos()  { return { cx: canvas.width/2, cy: canvas.height/2 + 98,  w: 210, h: 52 }; }
 
 canvas.addEventListener('mousemove', e => {
+  const c = screenToCanvas(e.clientX, e.clientY);
   if (gameState === STATE.TITLE) {
     const b = _titleBtnPos();
-    btnStartHovered = _insideBtn(e.clientX, e.clientY, b.cx, b.cy, b.w, b.h);
+    btnStartHovered = _insideBtn(c.x, c.y, b.cx, b.cy, b.w, b.h);
   }
   if (gameState === STATE.GAME_OVER) {
     const b = _retryBtnPos();
-    btnRetryHovered = _insideBtn(e.clientX, e.clientY, b.cx, b.cy, b.w, b.h);
+    btnRetryHovered = _insideBtn(c.x, c.y, b.cx, b.cy, b.w, b.h);
   }
 });
 
 async function handleStart(px, py) {
+  const c = screenToCanvas(px, py);
   if (gameState === STATE.TITLE) {
     const b = _titleBtnPos();
-    if (_insideBtn(px, py, b.cx, b.cy, b.w, b.h)) {
+    if (_insideBtn(c.x, c.y, b.cx, b.cy, b.w, b.h)) {
       if (typeof DeviceOrientationEvent !== 'undefined' &&
           typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
@@ -1142,7 +1131,7 @@ async function handleStart(px, py) {
   }
   if (gameState === STATE.GAME_OVER) {
     const b = _retryBtnPos();
-    if (_insideBtn(px, py, b.cx, b.cy, b.w, b.h)) startGame();
+    if (_insideBtn(c.x, c.y, b.cx, b.cy, b.w, b.h)) startGame();
   }
 }
 
