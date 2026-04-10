@@ -238,7 +238,7 @@ const player = {
       let da = targetAngle - this.angle;
       while (da >  Math.PI) da -= Math.PI * 2;
       while (da < -Math.PI) da += Math.PI * 2;
-      this.angle += da * Math.min(1, 10 * dt);
+      this.angle += da * Math.min(1, 6 * dt);
     }
 
     // Trail
@@ -848,6 +848,7 @@ const HUD_HEIGHT = 44;
 const keys = {};
 let tiltActive  = false;
 let mouseDX = 0, mouseDY = 0;
+let tiltSmoothX = 0, tiltSmoothY = 0; // ローパスフィルター用
 
 window.addEventListener('keydown', e => { keys[e.code] = true; });
 window.addEventListener('keyup',   e => { keys[e.code] = false; });
@@ -876,14 +877,19 @@ function setupTilt() {
     // 縦持ち固定・canvas90°回転方式：
     // 画面上の横方向(game X) ← 端末のpitch(beta)
     // 画面上の縦方向(game Y) ← 端末のroll(gamma、符号反転)
-    const rawX = beta - 20;  // 前後傾き → ゲーム左右
-    const rawY = -gamma;     // 左右傾き → ゲーム上下（反転で自然な操作感）
+    const rawX = beta - 20;
+    const rawY = -gamma;
 
-    // 傾き角度を正規化（最大40度で±1）し、二乗カーブで加速度を変える
-    const maxTiltX = 22; // beta(前後)は可動域が狭いので感度高め
-    const maxTiltY = 22; // gamma(左右)も同感度に統一
-    const nx = Math.max(-1, Math.min(1, rawX / maxTiltX));
-    const ny = Math.max(-1, Math.min(1, rawY / maxTiltY));
+    // ローパスフィルター：センサーノイズを平滑化してかくつきを除去
+    const smooth = 0.2;
+    tiltSmoothX += (rawX - tiltSmoothX) * smooth;
+    tiltSmoothY += (rawY - tiltSmoothY) * smooth;
+
+    // 正規化＋二乗カーブ（傾けるほど加速）
+    const maxTiltX = 22;
+    const maxTiltY = 16; // 上下感度を上げる
+    const nx = Math.max(-1, Math.min(1, tiltSmoothX / maxTiltX));
+    const ny = Math.max(-1, Math.min(1, tiltSmoothY / maxTiltY));
     player.targetVX = Math.sign(nx) * nx * nx * CONFIG.PLAYER_SPEED;
     player.targetVY = Math.sign(ny) * ny * ny * CONFIG.PLAYER_SPEED;
     tiltActive = true;
