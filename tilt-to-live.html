@@ -9,9 +9,36 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; }
     canvas { display: block; touch-action: none; }
+
+    /* 縦画面では回転を促すオーバーレイを表示 */
+    #rotate-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 9999;
+      background: #000;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      color: #00FFFF;
+      font-family: 'Orbitron', monospace;
+      text-align: center;
+      gap: 24px;
+    }
+    #rotate-overlay .icon { font-size: 64px; animation: spin 2s ease-in-out infinite alternate; }
+    #rotate-overlay p { font-size: 16px; color: #aaa; }
+    @keyframes spin {
+      from { transform: rotate(-20deg); }
+      to   { transform: rotate(20deg); }
+    }
+    @media (orientation: portrait) {
+      #rotate-overlay { display: flex; }
+    }
   </style>
 </head>
 <body>
+<div id="rotate-overlay">
+  <div class="icon">📱</div>
+  <div style="font-size:20px; font-weight:bold;">横画面にしてください</div>
+  <p>This game is designed for landscape mode.</p>
+</div>
 <canvas id="game"></canvas>
 <script>
 'use strict';
@@ -836,8 +863,30 @@ function setupTilt() {
     if (gameState !== STATE.PLAYING) return;
     const gamma = e.gamma || 0;
     const beta  = e.beta  || 0;
-    player.targetVX = gamma * CONFIG.TILT_SENSITIVITY;
-    player.targetVY = (beta - 25) * CONFIG.TILT_SENSITIVITY;
+
+    // 横画面ではgamma/betaの軸が入れ替わるため補正
+    // angle=90(landscape right): X←beta, Y←-gamma
+    // angle=270(landscape left):  X←-beta, Y←gamma
+    const angle = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+    let rawX, rawY;
+    if (angle === 90) {
+      rawX =  beta;
+      rawY = -gamma;
+    } else if (angle === 270 || angle === -90) {
+      rawX = -beta;
+      rawY =  gamma;
+    } else {
+      // 縦画面フォールバック（従来通り）
+      rawX =  gamma;
+      rawY =  beta - 25;
+    }
+
+    // 傾き角度を正規化（最大40度で±1）し、二乗カーブで加速度を変える
+    const maxTilt = 40;
+    const nx = Math.max(-1, Math.min(1, rawX / maxTilt));
+    const ny = Math.max(-1, Math.min(1, rawY / maxTilt));
+    player.targetVX = Math.sign(nx) * nx * nx * CONFIG.PLAYER_SPEED;
+    player.targetVY = Math.sign(ny) * ny * ny * CONFIG.PLAYER_SPEED;
     tiltActive = true;
   });
 }
