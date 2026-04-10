@@ -41,8 +41,8 @@ const CONFIG = {
   SCORE_PER_SECOND: 10,
   SCORE_PER_KILL: 50,
   PLAYER_RADIUS: 4,
-  ENEMY_RADIUS: 5,
-  ORB_RADIUS: 12,
+  ENEMY_RADIUS: 7,
+  ORB_RADIUS: 14,
   INVINCIBLE_DURATION: 1.5,
   TRAIL_MAX: 22,
 };
@@ -407,26 +407,65 @@ class Enemy {
 const EnemyManager = {
   enemies: [],
   spawnTimer: 0,
+  waveTimer: 0,      // 緩急用タイマー
+  groupTimer: 0,     // 集団スポーン用タイマー
+  nextGroupIn: 9,    // 最初の集団スポーンまでの秒数
 
   reset() {
-    this.enemies   = [];
+    this.enemies    = [];
     this.spawnTimer = 0;
+    this.waveTimer  = 0;
+    this.groupTimer = 0;
+    this.nextGroupIn = 8 + Math.random() * 5;
   },
 
   _spawnInterval() {
-    return Math.max(CONFIG.ENEMY_SPAWN_MIN, CONFIG.ENEMY_SPAWN_INTERVAL - ScoreManager.elapsed * 0.012);
+    const base = Math.max(CONFIG.ENEMY_SPAWN_MIN,
+      CONFIG.ENEMY_SPAWN_INTERVAL - ScoreManager.elapsed * 0.012);
+    // 15秒周期のsin波で緩急をつける（ラッシュ時0.55倍、落ち着き時1.45倍）
+    const wave = Math.sin(this.waveTimer * Math.PI * 2 / 15) * 0.45;
+    return base * (1 - wave);
   },
 
   _enemySpeed() {
     return CONFIG.ENEMY_BASE_SPEED + Math.floor(ScoreManager.elapsed / 30) * CONFIG.ENEMY_SPEED_INCREMENT;
   },
 
+  _spawnGroup(count) {
+    // 同じ辺からまとめて出現
+    const side = Math.floor(Math.random() * 4);
+    const m = 30;
+    let bx, by;
+    if      (side === 0) { bx = Math.random() * canvas.width;  by = -m; }
+    else if (side === 1) { bx = Math.random() * canvas.width;  by = canvas.height + m; }
+    else if (side === 2) { bx = -m;                            by = Math.random() * canvas.height; }
+    else                  { bx = canvas.width + m;              by = Math.random() * canvas.height; }
+    for (let i = 0; i < count; i++) {
+      const e = new Enemy();
+      e.x = bx + (Math.random() - 0.5) * 55;
+      e.y = by + (Math.random() - 0.5) * 55;
+      this.enemies.push(e);
+    }
+  },
+
   update(dt) {
+    this.waveTimer  += dt;
+    this.groupTimer += dt;
+
+    // 通常スポーン（緩急あり）
     this.spawnTimer += dt;
     if (this.spawnTimer >= this._spawnInterval()) {
       this.spawnTimer = 0;
       this.enemies.push(new Enemy());
     }
+
+    // 集団スポーン（8〜15秒ごとに3〜5体）
+    if (this.groupTimer >= this.nextGroupIn) {
+      this.groupTimer  = 0;
+      this.nextGroupIn = 8 + Math.random() * 7;
+      this._spawnGroup(3 + Math.floor(Math.random() * 3));
+    }
+
     const spd = this._enemySpeed();
     for (const e of this.enemies) e.update(dt, this.enemies, spd);
   },
