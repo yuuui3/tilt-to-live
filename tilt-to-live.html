@@ -40,8 +40,8 @@ const CONFIG = {
   ORB_MAX_COUNT: 3,
   SCORE_PER_SECOND: 10,
   SCORE_PER_KILL: 50,
-  PLAYER_RADIUS: 6,
-  ENEMY_RADIUS: 6,
+  PLAYER_RADIUS: 4,
+  ENEMY_RADIUS: 5,
   ORB_RADIUS: 12,
   INVINCIBLE_DURATION: 1.5,
   TRAIL_MAX: 22,
@@ -217,7 +217,7 @@ const player = {
   },
 
   update(dt) {
-    const lf = Math.min(1, 10 * dt); // 速度変化をなめらかに（かくかく対策）
+    const lf = Math.min(1, 14 * dt); // 小回り向上
     this.vx += (this.targetVX - this.vx) * lf;
     this.vy += (this.targetVY - this.vy) * lf;
 
@@ -892,8 +892,8 @@ function setupTilt() {
     tiltSmoothY += (rawY - tiltSmoothY) * smooth;
 
     // 正規化＋二乗カーブ（傾けるほど加速）
-    const maxTiltX = 22;
-    const maxTiltY = 16; // 上下感度を上げる
+    const maxTiltX = 16; // 少ない傾けで速く動く
+    const maxTiltY = 13;
     const nx = Math.max(-1, Math.min(1, tiltSmoothX / maxTiltX));
     const ny = Math.max(-1, Math.min(1, tiltSmoothY / maxTiltY));
     player.targetVX = Math.sign(nx) * nx * nx * CONFIG.PLAYER_SPEED;
