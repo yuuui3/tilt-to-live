@@ -216,7 +216,7 @@ const player = {
   },
 
   update(dt) {
-    const lf = Math.min(1, 16 * dt);
+    const lf = Math.min(1, 10 * dt); // 速度変化をなめらかに（かくかく対策）
     this.vx += (this.targetVX - this.vx) * lf;
     this.vy += (this.targetVY - this.vy) * lf;
 
@@ -231,14 +231,14 @@ const player = {
     if (this.y - r < top)           { this.y = top + r;              this.vy = Math.abs(this.vy); }
     if (this.y + r > canvas.height) { this.y = canvas.height - r;   this.vy = -Math.abs(this.vy); }
 
-    // Rotation toward movement
-    const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-    if (spd > 15) {
-      const targetAngle = Math.atan2(this.vy, this.vx);
+    // 角度は入力の向き(targetV)を使う→遅れなく進行方向を向く
+    const tspd = Math.sqrt(this.targetVX * this.targetVX + this.targetVY * this.targetVY);
+    if (tspd > 8) {
+      const targetAngle = Math.atan2(this.targetVY, this.targetVX);
       let da = targetAngle - this.angle;
       while (da >  Math.PI) da -= Math.PI * 2;
       while (da < -Math.PI) da += Math.PI * 2;
-      this.angle += da * Math.min(1, 6 * dt);
+      this.angle += da * Math.min(1, 14 * dt); // 速く追従
     }
 
     // Trail
@@ -886,7 +886,7 @@ function setupTilt() {
     const rawY = -gamma;
 
     // ローパスフィルター：センサーノイズを平滑化してかくつきを除去
-    const smooth = 0.2;
+    const smooth = 0.15;
     tiltSmoothX += (rawX - tiltSmoothX) * smooth;
     tiltSmoothY += (rawY - tiltSmoothY) * smooth;
 
