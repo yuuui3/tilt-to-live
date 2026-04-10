@@ -459,7 +459,7 @@ class Enemy {
   }
 
   get hitRadius() {
-    return this.frozen ? this.radius * 4 : this.radius;
+    return this.frozen ? this.radius * 5 : this.radius;
   }
 
   render() {
@@ -493,13 +493,13 @@ class EliteEnemy extends Enemy {
   render() {
     this.auraPhase += 0.05;
     const pulse = 1 + 0.18 * Math.sin(this.auraPhase);
-    const r     = this.radius * pulse;
+    const r     = this.hitRadius * pulse;
     // オーラ
     ctx.save();
     ctx.globalAlpha = 0.25 + 0.15 * Math.sin(this.auraPhase * 1.7);
-    ctx.fillStyle   = '#FF9900';
+    ctx.fillStyle   = this.frozen ? '#0044FF' : '#FF9900';
     ctx.shadowBlur  = 35;
-    ctx.shadowColor = '#FF6600';
+    ctx.shadowColor = this.frozen ? '#0066FF' : '#FF6600';
     ctx.beginPath();
     ctx.arc(this.x, this.y, r * 1.7, 0, Math.PI * 2);
     ctx.fill();
