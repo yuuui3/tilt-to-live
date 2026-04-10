@@ -55,8 +55,9 @@ const ctx = canvas.getContext('2d');
 
 function resizeCanvas() {
   // 縦持ちスマホで横画面を実現：canvas内部は横長サイズ、CSSで90°回転
-  const W = window.innerHeight; // 長辺 = ゲームの横幅
-  const H = window.innerWidth;  // 短辺 = ゲームの縦幅
+  // Math.max/min で端末の向きに関わらず常に横長を保証
+  const W = Math.max(window.innerWidth, window.innerHeight); // 長辺 = ゲームの横幅
+  const H = Math.min(window.innerWidth, window.innerHeight); // 短辺 = ゲームの縦幅
   canvas.width  = W;
   canvas.height = H;
   canvas.style.width  = W + 'px';
