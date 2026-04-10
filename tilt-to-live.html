@@ -464,7 +464,7 @@ class Enemy {
 
   render() {
     const pulse = 1 + 0.15 * Math.sin(this.phase);
-    const r     = this.radius * pulse;
+    const r     = this.hitRadius * pulse;
     const color = this.frozen ? '#44AAFF' : '#FF2222';
     const glow  = this.frozen ? '#0066FF' : '#FF2222';
 
@@ -766,10 +766,7 @@ class Missile {
     if (this.target) {
       const dx = this.target.x - this.x;
       const dy = this.target.y - this.y;
-      let da = Math.atan2(dy, dx) - this.angle;
-      while (da >  Math.PI) da -= Math.PI * 2;
-      while (da < -Math.PI) da += Math.PI * 2;
-      this.angle += da * Math.min(1, 30 * dt);
+      this.angle = Math.atan2(dy, dx);
     }
 
     this.x += Math.cos(this.angle) * this.speed * dt;
