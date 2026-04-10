@@ -769,7 +769,7 @@ class Missile {
       let da = Math.atan2(dy, dx) - this.angle;
       while (da >  Math.PI) da -= Math.PI * 2;
       while (da < -Math.PI) da += Math.PI * 2;
-      this.angle += da * Math.min(1, 5 * dt);
+      this.angle += da * Math.min(1, 15 * dt);
     }
 
     this.x += Math.cos(this.angle) * this.speed * dt;
@@ -849,7 +849,7 @@ function activateWeapon(type) {
     emitParticles(cx, cy, 35, '#AA00FF', { speed: 220, size: 6, life: 1.0 });
 
   } else if (type === 'missile') {
-    const count = 12;
+    const count = 20;
     for (let i = 0; i < count; i++) {
       missiles.push(new Missile(player.x, player.y, (i / count) * Math.PI * 2));
     }
