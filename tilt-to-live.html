@@ -891,14 +891,19 @@ function setupTilt() {
     tiltSmoothX += (rawX - tiltSmoothX) * smooth;
     tiltSmoothY += (rawY - tiltSmoothY) * smooth;
 
-    // 正規化＋二乗カーブ（傾けるほど加速）
-    const maxTiltX = 9; // 横方向感度アップ
+    // 軸ごとに感度スケール後、合成ベクトルの大きさにカーブを適用
+    // → 斜め移動が自然な方向・速度になる
+    const maxTiltX = 9;
     const maxTiltY = 10;
-    const nx = Math.max(-1, Math.min(1, tiltSmoothX / maxTiltX));
-    const ny = Math.max(-1, Math.min(1, tiltSmoothY / maxTiltY));
-    // べき乗1.2：ほぼリニアで即反応、大傾きでわずかに加速
-    player.targetVX = Math.sign(nx) * Math.pow(Math.abs(nx), 1.2) * CONFIG.PLAYER_SPEED;
-    player.targetVY = Math.sign(ny) * Math.pow(Math.abs(ny), 1.2) * CONFIG.PLAYER_SPEED;
+    const rawNx = tiltSmoothX / maxTiltX;
+    const rawNy = tiltSmoothY / maxTiltY;
+    const rawMag = Math.sqrt(rawNx * rawNx + rawNy * rawNy);
+    const clampedMag = Math.min(1, rawMag);
+    const curvedMag = Math.pow(clampedMag, 1.2) * CONFIG.PLAYER_SPEED;
+    const dirX = rawMag > 0.001 ? rawNx / rawMag : 0;
+    const dirY = rawMag > 0.001 ? rawNy / rawMag : 0;
+    player.targetVX = dirX * curvedMag;
+    player.targetVY = dirY * curvedMag;
     tiltActive = true;
   });
 }
