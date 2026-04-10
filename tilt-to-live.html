@@ -880,9 +880,10 @@ function setupTilt() {
     const rawY = -gamma;     // 左右傾き → ゲーム上下（反転で自然な操作感）
 
     // 傾き角度を正規化（最大40度で±1）し、二乗カーブで加速度を変える
-    const maxTilt = 40;
-    const nx = Math.max(-1, Math.min(1, rawX / maxTilt));
-    const ny = Math.max(-1, Math.min(1, rawY / maxTilt));
+    const maxTiltX = 22; // beta(前後)は可動域が狭いので感度高め
+    const maxTiltY = 38; // gamma(左右)は可動域が広いので標準
+    const nx = Math.max(-1, Math.min(1, rawX / maxTiltX));
+    const ny = Math.max(-1, Math.min(1, rawY / maxTiltY));
     player.targetVX = Math.sign(nx) * nx * nx * CONFIG.PLAYER_SPEED;
     player.targetVY = Math.sign(ny) * ny * ny * CONFIG.PLAYER_SPEED;
     tiltActive = true;
