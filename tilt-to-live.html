@@ -892,7 +892,7 @@ function setupTilt() {
     tiltSmoothY += (rawY - tiltSmoothY) * smooth;
 
     // 正規化＋二乗カーブ（傾けるほど加速）
-    const maxTiltX = 12; // 少ない傾けで最大速度
+    const maxTiltX = 9; // 横方向感度アップ
     const maxTiltY = 10;
     const nx = Math.max(-1, Math.min(1, tiltSmoothX / maxTiltX));
     const ny = Math.max(-1, Math.min(1, tiltSmoothY / maxTiltY));
