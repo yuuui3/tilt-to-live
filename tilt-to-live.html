@@ -896,8 +896,9 @@ function setupTilt() {
     const maxTiltY = 13;
     const nx = Math.max(-1, Math.min(1, tiltSmoothX / maxTiltX));
     const ny = Math.max(-1, Math.min(1, tiltSmoothY / maxTiltY));
-    player.targetVX = Math.sign(nx) * nx * nx * CONFIG.PLAYER_SPEED;
-    player.targetVY = Math.sign(ny) * ny * ny * CONFIG.PLAYER_SPEED;
+    // べき乗1.5：初速を出しつつ大傾きで加速する曲線（2乗より初速が速い）
+    player.targetVX = Math.sign(nx) * Math.pow(Math.abs(nx), 1.5) * CONFIG.PLAYER_SPEED;
+    player.targetVY = Math.sign(ny) * Math.pow(Math.abs(ny), 1.5) * CONFIG.PLAYER_SPEED;
     tiltActive = true;
   });
 }
