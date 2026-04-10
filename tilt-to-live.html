@@ -769,22 +769,21 @@ class Missile {
       let da = Math.atan2(dy, dx) - this.angle;
       while (da >  Math.PI) da -= Math.PI * 2;
       while (da < -Math.PI) da += Math.PI * 2;
-      this.angle += da * Math.min(1, 15 * dt);
+      this.angle += da * Math.min(1, 30 * dt);
     }
 
     this.x += Math.cos(this.angle) * this.speed * dt;
     this.y += Math.sin(this.angle) * this.speed * dt;
 
-    // Hit enemy
+    // Hit enemy → explode
     for (let i = EnemyManager.enemies.length - 1; i >= 0; i--) {
       const e  = EnemyManager.enemies[i];
       const dx = e.x - this.x, dy = e.y - this.y;
       if (dx * dx + dy * dy < (this.radius + e.hitRadius) ** 2) {
-        emitParticles(this.x, this.y, 14, '#FFDD00', { speed: 160, size: 4, life: 0.7 });
-        emitParticles(this.x, this.y,  6, '#FF8800', { speed: 80,  size: 2, life: 0.5 });
-        const isElM = e.isElite;
-        EnemyManager.enemies.splice(i, 1);
-        weaponKill('missile', 1, isElM);
+        EnemyManager.removeEnemiesInRadius(this.x, this.y, 60, '#FFDD00', 'missile');
+        emitParticles(this.x, this.y, 30, '#FFDD00', { speed: 260, size: 5, life: 0.8 });
+        emitParticles(this.x, this.y, 20, '#FF8800', { speed: 160, size: 4, life: 0.6 });
+        emitParticles(this.x, this.y, 10, '#FFFFFF', { speed: 320, size: 3, life: 0.4 });
         this.dead = true;
         return;
       }
