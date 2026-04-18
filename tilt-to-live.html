@@ -79,8 +79,8 @@ function screenToCanvas(sx, sy) {
 // ============================================================
 // GAME STATE
 // ============================================================
-const STATE = { TITLE: 0, PLAYING: 1, GAME_OVER: 2 };
-let gameState = STATE.TITLE;
+const STATE = { TITLE: 0, PLAYING: 1, GAME_OVER: 2, HOWTOPLAY: 3 };
+let gameState = STATE.HOWTOPLAY;
 
 // ============================================================
 // SCORE MANAGER
@@ -458,9 +458,13 @@ class Enemy {
     this.frozenTimer = dur;
   }
 
+  get hitRadius() {
+    return this.frozen ? this.radius * 5 : this.radius;
+  }
+
   render() {
     const pulse = 1 + 0.15 * Math.sin(this.phase);
-    const r     = this.radius * pulse;
+    const r     = this.hitRadius * pulse;
     const color = this.frozen ? '#44AAFF' : '#FF2222';
     const glow  = this.frozen ? '#0066FF' : '#FF2222';
 
@@ -489,13 +493,13 @@ class EliteEnemy extends Enemy {
   render() {
     this.auraPhase += 0.05;
     const pulse = 1 + 0.18 * Math.sin(this.auraPhase);
-    const r     = this.radius * pulse;
+    const r     = this.hitRadius * pulse;
     // オーラ
     ctx.save();
     ctx.globalAlpha = 0.25 + 0.15 * Math.sin(this.auraPhase * 1.7);
-    ctx.fillStyle   = '#FF9900';
+    ctx.fillStyle   = this.frozen ? '#0044FF' : '#FF9900';
     ctx.shadowBlur  = 35;
-    ctx.shadowColor = '#FF6600';
+    ctx.shadowColor = this.frozen ? '#0066FF' : '#FF6600';
     ctx.beginPath();
     ctx.arc(this.x, this.y, r * 1.7, 0, Math.PI * 2);
     ctx.fill();
@@ -620,7 +624,7 @@ const EnemyManager = {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
           const e  = this.enemies[i];
           const dx = e.x - player.x, dy = e.y - player.y;
-          if (Math.sqrt(dx * dx + dy * dy) < CONFIG.PLAYER_RADIUS + e.radius + 12) {
+          if (Math.sqrt(dx * dx + dy * dy) < CONFIG.PLAYER_RADIUS + e.hitRadius + 12) {
             emitParticles(e.x, e.y, 10, '#00FF66', { speed: 130 });
             const isEl = e.isElite;
             this.enemies.splice(i, 1);
@@ -633,18 +637,17 @@ const EnemyManager = {
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e  = this.enemies[i];
       const dx = e.x - player.x, dy = e.y - player.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (e.frozen) {
-        // 凍結中の敵：判定を広めに取って当てやすくする
-        if (dist < CONFIG.PLAYER_RADIUS + e.radius + 20) {
+      if (Math.sqrt(dx * dx + dy * dy) < CONFIG.PLAYER_RADIUS + e.hitRadius) {
+        if (e.frozen) {
+          // 凍結中の敵はタッチで撃破
           emitParticles(e.x, e.y, 12, '#44AAFF', { speed: 140, size: 4, life: 0.7 });
           emitParticles(e.x, e.y,  6, '#AADEFF', { speed: 70,  size: 2, life: 0.4 });
           const isElF = e.isElite;
           this.enemies.splice(i, 1);
           weaponKill('freeze', 1, isElF);
+        } else {
+          return true; // 通常の敵はゲームオーバー
         }
-      } else if (dist < CONFIG.PLAYER_RADIUS + e.radius) {
-        return true; // 通常の敵はゲームオーバー
       }
     }
     return false;
@@ -731,15 +734,15 @@ const activeEffects = [];
 
 // ---- Missiles ----
 class Missile {
-  constructor(x, y, angle) {
+  constructor(x, y, angle, preTarget = null) {
     this.x = x; this.y = y;
     this.angle  = angle;
-    this.speed  = 360;
-    this.radius = 4;
+    this.speed  = 750;
+    this.radius = 8;
     this.life   = 3.5;
-    this.target = null;
     this.dead   = false;
-    this._findTarget();
+    this.target = preTarget && EnemyManager.enemies.includes(preTarget) ? preTarget : null;
+    if (!this.target) this._findTarget();
   }
 
   _findTarget() {
@@ -761,29 +764,38 @@ class Missile {
       this._findTarget();
     }
     if (this.target) {
-      const dx = this.target.x - this.x;
-      const dy = this.target.y - this.y;
-      let da = Math.atan2(dy, dx) - this.angle;
-      while (da >  Math.PI) da -= Math.PI * 2;
-      while (da < -Math.PI) da += Math.PI * 2;
-      this.angle += da * Math.min(1, 5 * dt);
+      const tdx  = this.target.x - this.x;
+      const tdy  = this.target.y - this.y;
+      const dist = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
+      const t    = dist / this.speed;
+      const px   = this.target.x + (this.target.vx || 0) * t;
+      const py   = this.target.y + (this.target.vy || 0) * t;
+      this.angle = Math.atan2(py - this.y, px - this.x);
     }
 
-    this.x += Math.cos(this.angle) * this.speed * dt;
-    this.y += Math.sin(this.angle) * this.speed * dt;
+    // Sub-stepped movement to prevent tunneling at high speed
+    const totalDist = this.speed * dt;
+    const steps     = Math.max(1, Math.ceil(totalDist / 8));
+    const stepDist  = totalDist / steps;
+    const cosA = Math.cos(this.angle);
+    const sinA = Math.sin(this.angle);
 
-    // Hit enemy
-    for (let i = EnemyManager.enemies.length - 1; i >= 0; i--) {
-      const e  = EnemyManager.enemies[i];
-      const dx = e.x - this.x, dy = e.y - this.y;
-      if (dx * dx + dy * dy < (this.radius + e.radius) ** 2) {
-        emitParticles(this.x, this.y, 14, '#FFDD00', { speed: 160, size: 4, life: 0.7 });
-        emitParticles(this.x, this.y,  6, '#FF8800', { speed: 80,  size: 2, life: 0.5 });
-        const isElM = e.isElite;
-        EnemyManager.enemies.splice(i, 1);
-        weaponKill('missile', 1, isElM);
-        this.dead = true;
-        return;
+    for (let s = 0; s < steps; s++) {
+      this.x += cosA * stepDist;
+      this.y += sinA * stepDist;
+
+      // Hit enemy → explode
+      for (let i = EnemyManager.enemies.length - 1; i >= 0; i--) {
+        const e  = EnemyManager.enemies[i];
+        const dx = e.x - this.x, dy = e.y - this.y;
+        if (dx * dx + dy * dy < (this.radius + e.hitRadius) ** 2) {
+          EnemyManager.removeEnemiesInRadius(this.x, this.y, 60, '#FFDD00', 'missile');
+          emitParticles(this.x, this.y, 30, '#FFDD00', { speed: 260, size: 5, life: 0.8 });
+          emitParticles(this.x, this.y, 20, '#FF8800', { speed: 160, size: 4, life: 0.6 });
+          emitParticles(this.x, this.y, 10, '#FFFFFF', { speed: 320, size: 3, life: 0.4 });
+          this.dead = true;
+          return;
+        }
       }
     }
 
@@ -846,9 +858,11 @@ function activateWeapon(type) {
     emitParticles(cx, cy, 35, '#AA00FF', { speed: 220, size: 6, life: 1.0 });
 
   } else if (type === 'missile') {
-    const count = 12;
+    const enemies = EnemyManager.enemies;
+    const count   = Math.max(12, enemies.length);
     for (let i = 0; i < count; i++) {
-      missiles.push(new Missile(player.x, player.y, (i / count) * Math.PI * 2));
+      const pre = enemies.length > 0 ? enemies[i % enemies.length] : null;
+      missiles.push(new Missile(player.x, player.y, (i / count) * Math.PI * 2, pre));
     }
     emitParticles(player.x, player.y, 22, '#FFDD00', { speed: 220, size: 4, life: 0.6 });
 
@@ -1186,8 +1200,9 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-let btnStartHovered = false;
-let btnRetryHovered = false;
+let btnStartHovered   = false;
+let btnRetryHovered   = false;
+let btnHowToPlayHovered = false;
 
 function drawTitle() {
   ctx.save();
@@ -1253,6 +1268,96 @@ function drawTitle() {
   ctx.restore();
 }
 
+function drawHowToPlay() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.92)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  // ゲームタイトル
+  ctx.font        = `900 ${Math.min(44, canvas.width * 0.09)}px Orbitron, monospace`;
+  ctx.shadowBlur  = 35;
+  ctx.shadowColor = '#00FFFF';
+  ctx.fillStyle   = '#FFFFFF';
+  ctx.fillText('GRAVIX', cx, cy - 145);
+
+  ctx.font        = `${Math.min(13, canvas.width * 0.028)}px Orbitron, monospace`;
+  ctx.shadowColor = '#FF2222';
+  ctx.fillStyle   = '#FF4455';
+  ctx.shadowBlur  = 8;
+  ctx.fillText('SURVIVE. COLLECT. DESTROY.', cx, cy - 118);
+
+  // 区切り線
+  ctx.shadowBlur  = 0;
+  ctx.strokeStyle = '#333333';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - 190, cy - 104); ctx.lineTo(cx + 190, cy - 104);
+  ctx.stroke();
+
+  // 基本ルール
+  ctx.shadowBlur  = 4;
+  ctx.shadowColor = '#888';
+  ctx.fillStyle   = '#CCCCCC';
+  ctx.font        = '11px Orbitron, monospace';
+  ctx.fillText('📱  デバイスを傾けてプレイヤーを操作', cx, cy - 90);
+  ctx.fillText('⚪  オーブを集めると武器が発動する', cx, cy - 74);
+  ctx.fillStyle   = '#FF6677';
+  ctx.shadowColor = '#FF2222';
+  ctx.fillText('✕  赤い敵に触れるとゲームオーバー', cx, cy - 58);
+
+  // 区切り線
+  ctx.shadowBlur  = 0;
+  ctx.strokeStyle = '#333333';
+  ctx.beginPath();
+  ctx.moveTo(cx - 190, cy - 44); ctx.lineTo(cx + 190, cy - 44);
+  ctx.stroke();
+
+  // 武器リスト
+  ctx.font        = '10px Orbitron, monospace';
+  ctx.fillStyle   = '#666666';
+  ctx.fillText('— W E A P O N S —', cx, cy - 31);
+
+  const weapons = [
+    { color: '#FF6600', t: '💥 BOMB       爆発で周囲の敵を一掃' },
+    { color: '#00CCFF', t: '❄️ FREEZE     全敵を凍結・触れて撃破' },
+    { color: '#AA00FF', t: '🌀 VORTEX     引き寄せて消滅' },
+    { color: '#FFDD00', t: '🚀 MISSILES   追尾ミサイルを一斉発射' },
+    { color: '#00FF66', t: '⚡ SHIELD     触れた敵を撃破モード' },
+  ];
+  weapons.forEach((w, i) => {
+    ctx.shadowBlur  = 6;
+    ctx.shadowColor = w.color;
+    ctx.fillStyle   = w.color;
+    ctx.fillText(w.t, cx, cy - 16 + i * 16);
+  });
+
+  // 水平キャリブレーション警告ボックス
+  const boxY = cy + 72;
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = 'rgba(0,255,255,0.06)';
+  ctx.fillRect(cx - 195, boxY - 24, 390, 48);
+  ctx.strokeStyle = 'rgba(0,255,255,0.4)';
+  ctx.lineWidth   = 1;
+  ctx.strokeRect(cx - 195, boxY - 24, 390, 48);
+
+  ctx.shadowBlur  = 10;
+  ctx.shadowColor = '#00FFFF';
+  ctx.fillStyle   = '#00FFFF';
+  ctx.font        = '11px Orbitron, monospace';
+  ctx.fillText('📐  スタート時の傾きが操作の基準になります', cx, boxY - 8);
+  ctx.shadowBlur  = 6;
+  ctx.shadowColor = '#FFFFFF';
+  ctx.fillStyle   = '#FFFFFF';
+  ctx.font        = '10px Orbitron, monospace';
+  ctx.fillText('デバイスを水平に持ってから「了解」を押してください', cx, boxY + 10);
+
+  drawButton(cx, cy + 120, 180, 46, '了解', '#00FFFF', btnHowToPlayHovered);
+  ctx.restore();
+}
+
 function drawGameOver() {
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.82)';
@@ -1295,14 +1400,19 @@ function drawGameOver() {
 // ============================================================
 // BUTTON INTERACTION
 // ============================================================
-function _titleBtnPos()  { return { cx: canvas.width/2, cy: canvas.height/2 + 120, w: 210, h: 52 }; }
-function _retryBtnPos()  { return { cx: canvas.width/2, cy: canvas.height/2 + 98,  w: 210, h: 52 }; }
+function _titleBtnPos()     { return { cx: canvas.width/2, cy: canvas.height/2 + 120, w: 210, h: 52 }; }
+function _howToPlayBtnPos() { return { cx: canvas.width/2, cy: canvas.height/2 + 120, w: 180, h: 46 }; }
+function _retryBtnPos()     { return { cx: canvas.width/2, cy: canvas.height/2 + 98,  w: 210, h: 52 }; }
 
 canvas.addEventListener('mousemove', e => {
   const c = screenToCanvas(e.clientX, e.clientY);
   if (gameState === STATE.TITLE) {
     const b = _titleBtnPos();
     btnStartHovered = _insideBtn(c.x, c.y, b.cx, b.cy, b.w, b.h);
+  }
+  if (gameState === STATE.HOWTOPLAY) {
+    const b = _howToPlayBtnPos();
+    btnHowToPlayHovered = _insideBtn(c.x, c.y, b.cx, b.cy, b.w, b.h);
   }
   if (gameState === STATE.GAME_OVER) {
     const b = _retryBtnPos();
@@ -1314,6 +1424,12 @@ async function handleStart(px, py) {
   const c = screenToCanvas(px, py);
   if (gameState === STATE.TITLE) {
     const b = _titleBtnPos();
+    if (_insideBtn(c.x, c.y, b.cx, b.cy, b.w, b.h)) {
+      gameState = STATE.HOWTOPLAY;
+    }
+  }
+  if (gameState === STATE.HOWTOPLAY) {
+    const b = _howToPlayBtnPos();
     if (_insideBtn(c.x, c.y, b.cx, b.cy, b.w, b.h)) {
       if (typeof DeviceOrientationEvent !== 'undefined' &&
           typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -1392,6 +1508,10 @@ function render() {
 
   if (gameState === STATE.TITLE) {
     drawTitle();
+    return;
+  }
+  if (gameState === STATE.HOWTOPLAY) {
+    drawHowToPlay();
     return;
   }
 
