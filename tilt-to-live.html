@@ -80,7 +80,7 @@ function screenToCanvas(sx, sy) {
 // GAME STATE
 // ============================================================
 const STATE = { TITLE: 0, PLAYING: 1, GAME_OVER: 2, HOWTOPLAY: 3 };
-let gameState = STATE.TITLE;
+let gameState = STATE.HOWTOPLAY;
 
 // ============================================================
 // SCORE MANAGER
@@ -1270,63 +1270,74 @@ function drawTitle() {
 
 function drawHowToPlay() {
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.90)';
+  ctx.fillStyle = 'rgba(0,0,0,0.92)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const cx = canvas.width / 2, cy = canvas.height / 2;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-  // タイトル
-  ctx.font        = `900 ${Math.min(26, canvas.width * 0.055)}px Orbitron, monospace`;
-  ctx.shadowBlur  = 20;
+  // ゲームタイトル
+  ctx.font        = `900 ${Math.min(44, canvas.width * 0.09)}px Orbitron, monospace`;
+  ctx.shadowBlur  = 35;
   ctx.shadowColor = '#00FFFF';
-  ctx.fillStyle   = '#00FFFF';
-  ctx.fillText('HOW  TO  PLAY', cx, cy - 138);
+  ctx.fillStyle   = '#FFFFFF';
+  ctx.fillText('GRAVIX', cx, cy - 145);
 
-  // 基本ルール
-  ctx.shadowBlur  = 4;
-  ctx.shadowColor = '#888';
-  ctx.fillStyle   = '#CCCCCC';
-  ctx.font        = '11px Orbitron, monospace';
-  ctx.fillText('📱  デバイスを傾けてプレイヤーを操作', cx, cy - 108);
-  ctx.fillText('⚪  オーブを集めると武器が発動する', cx, cy - 91);
-  ctx.fillStyle = '#FF6677';
+  ctx.font        = `${Math.min(13, canvas.width * 0.028)}px Orbitron, monospace`;
   ctx.shadowColor = '#FF2222';
-  ctx.fillText('✕  赤い敵に触れるとゲームオーバー', cx, cy - 74);
+  ctx.fillStyle   = '#FF4455';
+  ctx.shadowBlur  = 8;
+  ctx.fillText('SURVIVE. COLLECT. DESTROY.', cx, cy - 118);
 
   // 区切り線
   ctx.shadowBlur  = 0;
   ctx.strokeStyle = '#333333';
   ctx.lineWidth   = 1;
   ctx.beginPath();
-  ctx.moveTo(cx - 190, cy - 61); ctx.lineTo(cx + 190, cy - 61);
+  ctx.moveTo(cx - 190, cy - 104); ctx.lineTo(cx + 190, cy - 104);
+  ctx.stroke();
+
+  // 基本ルール
+  ctx.shadowBlur  = 4;
+  ctx.shadowColor = '#888';
+  ctx.fillStyle   = '#CCCCCC';
+  ctx.font        = '11px Orbitron, monospace';
+  ctx.fillText('📱  デバイスを傾けてプレイヤーを操作', cx, cy - 90);
+  ctx.fillText('⚪  オーブを集めると武器が発動する', cx, cy - 74);
+  ctx.fillStyle   = '#FF6677';
+  ctx.shadowColor = '#FF2222';
+  ctx.fillText('✕  赤い敵に触れるとゲームオーバー', cx, cy - 58);
+
+  // 区切り線
+  ctx.shadowBlur  = 0;
+  ctx.strokeStyle = '#333333';
+  ctx.beginPath();
+  ctx.moveTo(cx - 190, cy - 44); ctx.lineTo(cx + 190, cy - 44);
   ctx.stroke();
 
   // 武器リスト
   ctx.font        = '10px Orbitron, monospace';
-  ctx.fillStyle   = '#888888';
-  ctx.shadowColor = 'transparent';
-  ctx.fillText('— W E A P O N S —', cx, cy - 47);
+  ctx.fillStyle   = '#666666';
+  ctx.fillText('— W E A P O N S —', cx, cy - 31);
 
   const weapons = [
     { color: '#FF6600', t: '💥 BOMB       爆発で周囲の敵を一掃' },
     { color: '#00CCFF', t: '❄️ FREEZE     全敵を凍結・触れて撃破' },
     { color: '#AA00FF', t: '🌀 VORTEX     引き寄せて消滅' },
-    { color: '#FFDD00', t: '🚀 MISSILES   追尾ミサイル20発' },
+    { color: '#FFDD00', t: '🚀 MISSILES   追尾ミサイルを一斉発射' },
     { color: '#00FF66', t: '⚡ SHIELD     触れた敵を撃破モード' },
   ];
-  ctx.font = '10px Orbitron, monospace';
   weapons.forEach((w, i) => {
     ctx.shadowBlur  = 6;
     ctx.shadowColor = w.color;
     ctx.fillStyle   = w.color;
-    ctx.fillText(w.t, cx, cy - 28 + i * 16);
+    ctx.fillText(w.t, cx, cy - 16 + i * 16);
   });
 
   // 水平キャリブレーション警告ボックス
   const boxY = cy + 72;
-  ctx.shadowBlur = 0;
-  ctx.fillStyle  = 'rgba(0,255,255,0.06)';
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = 'rgba(0,255,255,0.06)';
   ctx.fillRect(cx - 195, boxY - 24, 390, 48);
   ctx.strokeStyle = 'rgba(0,255,255,0.4)';
   ctx.lineWidth   = 1;
@@ -1341,9 +1352,9 @@ function drawHowToPlay() {
   ctx.shadowColor = '#FFFFFF';
   ctx.fillStyle   = '#FFFFFF';
   ctx.font        = '10px Orbitron, monospace';
-  ctx.fillText('デバイスを水平に持ってから START してください', cx, boxY + 10);
+  ctx.fillText('デバイスを水平に持ってから「了解」を押してください', cx, boxY + 10);
 
-  drawButton(cx, cy + 122, 210, 48, 'START', '#00FFFF', btnHowToPlayHovered);
+  drawButton(cx, cy + 120, 180, 46, '了解', '#00FFFF', btnHowToPlayHovered);
   ctx.restore();
 }
 
@@ -1390,7 +1401,7 @@ function drawGameOver() {
 // BUTTON INTERACTION
 // ============================================================
 function _titleBtnPos()     { return { cx: canvas.width/2, cy: canvas.height/2 + 120, w: 210, h: 52 }; }
-function _howToPlayBtnPos() { return { cx: canvas.width/2, cy: canvas.height/2 + 122, w: 210, h: 48 }; }
+function _howToPlayBtnPos() { return { cx: canvas.width/2, cy: canvas.height/2 + 120, w: 180, h: 46 }; }
 function _retryBtnPos()     { return { cx: canvas.width/2, cy: canvas.height/2 + 98,  w: 210, h: 52 }; }
 
 canvas.addEventListener('mousemove', e => {
